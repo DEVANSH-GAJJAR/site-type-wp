@@ -1112,18 +1112,20 @@ class WordPress extends EE_Site_Command {
 		$core_download_command = "php -d memory_limit=256M \\$(which wp) core download --path=$wp_download_path --locale='$this->locale' $core_download_arguments";
 
 		$retry = 0;
-
+         //CHANGED HERE 
 		while ( $retry < 5 ) {
-			if ( ! \EE_DOCKER::docker_compose_exec( $core_download_command, 'php', 'bash', 'www-data', '', true ) ) {
-				if ( $retry++ < 5 ) {
-					\EE::log( 'Unable to download wp core. Retrying...' );
-					continue;
-				}
-				\EE::error( 'Unable to download wp core.', false );
-			} else {
-				break;
-			}
-		}
+        if ( ! \EE_DOCKER::docker_compose_exec( $core_download_command, 'php', 'bash', $this->site_data ) ) {
+        $retry++;
+        if ( $retry < 5 ) {
+            \EE::log( sprintf( 'Attempt %d/5: Unable to download WordPress core. Retrying...', $retry ) );
+            continue;
+        }
+        \EE::error( 'Failed to download WordPress core after 5 attempts.', false );
+    } else {
+        break;
+    }
+}
+
 
 		if ( 'db' === $this->site_data['db_host'] ) {
 			$mysql_unhealthy = true;
@@ -1200,7 +1202,8 @@ class WordPress extends EE_Site_Command {
 		}
 
 		$prefix          = ( $this->site_data['site_ssl'] ) ? 'https://' : 'http://';
-		$install_command = sprintf( 'wp core %s --url=\'%s%s\' --title=\'%s\' --admin_user=\'%s\'', $wp_install_command, $prefix, $this->site_data['site_url'], $this->site_data['app_admin_url'], $this->site_data['app_admin_username'] );
+		// CHANGED HERE 
+		$install_command .= $this->site_data['app_admin_password'] ? sprintf( ' --admin_password=\'%s\'', $this->site_data['app_admin_password'] ) : '';
 		$install_command .= $this->site_data['app_admin_password'] ? sprintf( ' --admin_password=\'%s\'', $this->site_data['app_admin_password'] ) : '';
 		$install_command .= sprintf( ' --admin_email=\'%s\' %s', $this->site_data['app_admin_email'], $maybe_multisite_type );
 
